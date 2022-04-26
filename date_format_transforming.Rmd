@@ -1,0 +1,103 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+
+csv_file = "~/Downloads/BirdStrikesData.csv"
+df.raw <- read.csv(file = csv_file, header = T, stringsAsFactors = F)
+
+```
+```{r}
+dbcon <- dbConnect(MySQL(), 
+```
+
+```{sql connection=dbcon}
+SET GLOBAL local_infile=1;
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS flight_date_info;
+```
+
+```{sql connection=mydb}
+
+CREATE TABLE flight_date_info (flight_date varchar(50) PRIMARY KEY,
+                               flight_date_year Int NOT NULL DEFAULT -1,
+                               flight_date_month Int NOT NULL DEFAULT -1,
+                               flight_date_day Int NOT NULL DEFAULT -1);
+```
+
+
+```{r}
+df.flight_date_table <- data.frame(flight_date = df.raw[!duplicated(df.raw$FlightDate),]$FlightDate)
+
+a <- df.raw$FlightDate
+
+flight_date <- df.raw$FlightDate;
+
+day <- as.list(strsplit(flight_date[5], "\\/")[[1]])[2]
+month <- as.list(strsplit(flight_date[5], "\\/")[[1]])[1]
+time <- as.list(strsplit(as.character((as.list(strsplit(flight_date[1], "\\/")[[1]]))[3]), " ")[[1]])[2]
+year <- as.list(strsplit(as.character((as.list(strsplit(flight_date[1], "\\/")[[1]]))[3]), " ")[[1]])[1]
+
+```
+
+```{r}
+colnames(df.flight_date_table)
+```
+
+
+```{sql connection=dbcon}
+show fields FROM date_new;
+```
+
+
+
+```{r}
+n.flight_date_table <- nrow(df.flight_date_table)
+
+for (r in 1:n.flight_date_table){
+    flight_date <- as.character(df.flight_date_table$flight_date[r]);
+ if(!is.null(flight_date)) {
+ 
+    day <- as.list(strsplit(flight_date[1], "\\/")[[1]])[2]
+    month <- as.list(strsplit(flight_date[1], "\\/")[[1]])[1]
+    year <- as.list(strsplit(as.character((as.list(strsplit(flight_date[1], "\\/")[[1]]))[3]), " ")[[1]])[1]
+    if (year == 'NULL') {
+      year <- -1
+    }
+    
+    if (month == 'NULL') {
+      month <- -1
+    }
+    
+    if (day == 'NULL') {
+      day <- -1
+    }
+
+    statement = paste("INSERT INTO flight_date_info(flight_date, flight_date_year, flight_date_month, flight_date_day) VALUES(", "'", flight_date, "'", ",", year, ",", month, ",", day, ");", sep ="")
+
+    rs <- dbSendStatement(dbcon, 
+                        statement)
+    dbClearResult(rs)
+  }
+}
+
+```
+
+```{sql connection=dbcon}
+dbDisconnect(dbcon)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

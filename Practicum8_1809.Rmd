@@ -1,0 +1,709 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(RMySQL)
+
+mydb <- dbConnect(MySQL(),
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS record_table;
+```
+
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS record_table;
+```
+
+
+## Raw_data_table create 暂时不要看
+```{sql connection=mydb}
+DROP TABLE IF EXISTS raw_data_table;
+```
+## Raw data table create skip 暂时不要看
+```{sql connection=mydb}
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS raw_data_table(
+  Record_ID INTEGER,
+  Aircraft_type TEXT(99), 
+  Airport TEXT(99),
+  Altitude INTEGER, 
+  Aircraft_make_model TEXT(99),
+  Wildlife_number_strike TEXT(99),
+  Wildlife_number_actual INTEGER, 
+  Effect_impact_to_flight TEXT(99),
+  Effect_indicated_damage TEXT(99),
+  Flight_date DATE,
+  Aircraft_airline TEXT(99), 
+  Origin_state TEXT(99),
+  Conditions_precipitations TEXT(99),
+  Phase_of_flight TEXT(99),
+  Remains_of_wildlife_collected BOOLEAN, 
+  Remains_of_wildlife_sent_to_smithsonian BOOLEAN, 
+  Remarks TEXT(99),
+  Wildlife_size TEXT(99),
+  Conditions_sky TEXT(99),
+  Wildlife_specices TEXT(99),
+  Pilot_warned VARCHAR(1),
+  Cost_total INTEGER,
+  Feet_above_ground INTEGER,
+  Number_of_people_injured INTEGER,
+  Is_aircraft_large TEXT(1),
+  Aircraft_number_of_engines integer,
+  PRIMARY KEY (Record_ID)
+)
+```
+
+
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS record_table;
+```
+
+
+
+## Create aircraft_info table 看这个
+```{sql connection=mydb}
+DROP TABLE IF EXISTS aircraft_info;
+```
+##is_aircraft_large 改成text
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS aircraft_info(
+  aircraft_info_id integer NOT NULL,
+  aircraft_type text NOT NULL,
+  aircraft_make_model text NOT NULL,
+  is_aircraft_large text NOT NULL,
+  aircraft_number_of_engines integer,
+  PRIMARY KEY (aircraft_info_id));
+```
+## read csv file 再 bulk load进入aircraft_info table
+## 但是没有去重
+## 使用的测试数据为BirdStrickesData_test1.csv 有100条
+
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS phase_situation;
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS phase_situation(
+  phase_id integer NOT NULL,
+  when_phase_of_flight text NOT NULL,
+  PRIMARY KEY (phase_id));
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS consequence
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS consequence(
+  consequence_id integer NOT NULL,
+  effect_impact_to_flight text NOT NULL,
+  effect_indicated_damage text NOT NULL,
+  PRIMARY KEY (consequence_id));
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS altitude_situation
+```
+```{sql connection=mydb}
+CREATE TABLE altitude_situation(
+  feet_above_ground VARCHAR(50) NOT NULL,
+  altitude_bin text NOT NULL,
+  PRIMARY KEY (feet_above_ground));
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS wild_size_record
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS wild_size_record(
+  wildlife_size_id integer NOT NULL,
+  wildlife_size text NOT NULL,
+  PRIMARY KEY (wildlife_size_id));  
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS wildlife_species
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS wildlife_species(wildlife_species_id Integer PRIMARY KEY,
+                         species TEXT NOT NULL);  
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS wildlife_count
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS wildlife_count(wildlife_number_struck_actual Integer PRIMARY KEY,
+                         wildlife_number_struck TEXT NOT NULL);   
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS conditions_precipitation_type
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS conditions_precipitation_type(conditions_precipitation_id Integer PRIMARY KEY,
+                         condition_precipitation TEXT NOT NULL);     
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS conditions_of_sky
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS conditions_of_sky(conditions_sky_id Integer PRIMARY KEY,
+                         condition_sky TEXT NOT NULL);   
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS action_done
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS action_done(action_id Integer PRIMARY KEY,
+                         remains_of_wildlife_collected tinyint(1) default 0,
+                         remains_of_wildlife_sent_to_smithsonian tinyint(1) default 0); 
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS flight_date_table
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS flight_date_table(flight_date varchar(50) PRIMARY KEY,
+                               flight_date_year TEXT NOT NULL,
+                               flight_date_month Int NOT NULL,
+                               flight_date_day Integer NOT NULL, 
+                               flight_date_time Integer NOT NULL);
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS airline_info
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS airline_info(airline_id Integer PRIMARY KEY,
+                         aircraft_airline_operator TEXT NOT NULL);
+```
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS airport_info
+```
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS airport_info(
+  airport_info_id integer NOT NULL,
+  airport_name text NOT NULL,
+  origin_state text NOT NULL,
+  PRIMARY KEY (airport_info_id)
+  );
+```
+
+
+```{r}
+csv_file = "~/Downloads/BirdStrikesData.csv"
+df.raw <- read.csv(file = csv_file, header = T, stringsAsFactors = F)
+#str(df.raw)
+#df.raw
+
+#写入aircraft_info table
+df.aircraft_info <- data.frame(
+                               aircraft_type = df.raw$Aircraft..Type,
+                               aircraft_make_model = df.raw$Aircraft..Make.Model,
+                               is_aircraft_large = df.raw$Is.Aircraft.Large.,
+                               aircraft_number_of_engines = df.raw$Aircraft..Number.of.engines.
+                               ) # 生成要insert 进入 database table的df，没有包含id，没有去重
+
+df.aircraft_info=df.aircraft_info[!duplicated(df.aircraft_info), ] # 去重
+aircraft_info_id=seq(1,nrow(df.aircraft_info)) # 生成id range（1，length
+df.aircraft_info$aircraft_info_id = aircraft_info_id # 原df 插入新column
+df.aircraft_info <- df.aircraft_info[,c(5,1,2,3,4)] # 调整column顺序，id放在第一位
+#print(df.aircraft_info) # 打印df.aircraft_info 进行确认
+#str(df.aircraft_info)
+dbWriteTable(mydb, "aircraft_info", df.aircraft_info, overwrite = F,row.names = FALSE, append=TRUE) #overwrite row.names append要记得调整
+
+#写入phase_situation table
+df.phase_situation <- data.frame( phase_id=seq(1,nrow(df.raw[!duplicated(df.raw$When..Phase.of.flight), ])),
+                                 when_phase_of_flight=df.raw[!duplicated(df.raw$When..Phase.of.flight), ]$When..Phase.of.flight
+                                 )
+dbWriteTable(mydb, "phase_situation", df.phase_situation, overwrite = F,row.names = FALSE, append=TRUE)
+
+#consequence table
+#View(df.raw[!duplicated(df.raw$Effect..Indicated.Damage, df.raw$Effect..Impact.to.flight), ])
+df.consequence <- data.frame( consequence_id=seq(1,nrow(df.raw[!duplicated(df.raw[,c('Effect..Impact.to.flight', 'Effect..Indicated.Damage')]), ])),
+                              effect_impact_to_flight = df.raw[!duplicated(df.raw[,c('Effect..Impact.to.flight', 'Effect..Indicated.Damage')]), ]$Effect..Impact.to.flight,
+                              effect_indicated_damage = df.raw[!duplicated(df.raw[,c('Effect..Impact.to.flight', 'Effect..Indicated.Damage')]), ]$Effect..Indicated.Damage
+                              )
+dbWriteTable(mydb, "consequence", df.consequence, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 altitude_situation table
+#print(df.raw[!duplicated(df.raw$Feet.above.ground),]$Feet.above.ground)
+#print(df.raw[!duplicated(df.raw$Altitude.bin),]$Altitude.bin)
+df.altitude_situation <- data.frame( feet_above_ground=df.raw[!duplicated(df.raw$Feet.above.ground),]$Feet.above.ground,
+                                     altitude_bin=df.raw[!duplicated(df.raw$Altitude.bin),]$Altitude.bin
+)
+dbWriteTable(mydb, "altitude_situation", df.altitude_situation, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 wild_size_record table
+# print(df.raw[!duplicated(df.raw$Wildlife..Size),]$Wildlife..Size)
+df.wild_size_record <- data.frame(wildlife_size_id= seq(1,nrow(df.raw[!duplicated(df.raw$Wildlife..Size),])),
+                                    wildlife_size = df.raw[!duplicated(df.raw$Wildlife..Size),]$Wildlife..Size
+                                    )
+dbWriteTable(mydb, "wild_size_record", df.wild_size_record, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 wildlife_species table
+# print(df.raw[!duplicated(df.raw$Wildlife..Species),]$Wildlife..Species)
+df.wildlife_species<- data.frame(wildlife_species_id= seq(1,nrow(df.raw[!duplicated(df.raw$Wildlife..Species),])),
+                                    species = df.raw[!duplicated(df.raw$Wildlife..Species),]$Wildlife..Species
+                                    )
+dbWriteTable(mydb, "wildlife_species", df.wildlife_species, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 wildlife_count table
+# print(df.raw[!duplicated(df.raw$Wildlife..Number.Struck.Actual),]$Wildlife..Number.Struck.Actual)
+# print(df.raw[!duplicated(df.raw$Wildlife..Number.struck),]$Wildlife..Number.struck)
+
+df.wildlife_count <- data.frame(
+                                wildlife_number_struck_actual = (df.raw[!duplicated(df.raw$Wildlife..Number.Struck.Actual),]$Wildlife..Number.Struck.Actual),
+                                wildlife_number_struck = df.raw[!duplicated(df.raw$Wildlife..Number.Struck.Actual),]$Wildlife..Number.struck)
+
+dbWriteTable(mydb, "wildlife_count", df.wildlife_count, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 conditions_precipitation_type table
+# print(df.raw[!duplicated(df.raw$Conditions..Precipitation),]$Conditions..Precipitation)
+df.conditions_precipitation_type <- data.frame(conditions_precipitation_id = seq(1,nrow(df.raw[!duplicated(df.raw$Conditions..Precipitation),])),
+                                               condition_precipitation = df.raw[!duplicated(df.raw$Conditions..Precipitation),]$Conditions..Precipitation
+                                               )
+dbWriteTable(mydb, "conditions_precipitation_type", df.conditions_precipitation_type, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 conditions_of_sky table
+# print(df.raw[!duplicated(df.raw$Conditions..Sky),]$Conditions..Sky)
+df.conditions_of_sky <- data.frame(conditions_sky_id = seq(1,nrow(df.raw[!duplicated(df.raw$Conditions..Sky),])),
+                                   condition_sky = df.raw[!duplicated(df.raw$Conditions..Sky),]$Conditions..Sky
+                                  )
+dbWriteTable(mydb, "conditions_of_sky", df.conditions_of_sky, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 action_done table
+df.action_done <- data.frame(action_id = seq(1,4),
+                             remains_of_wildlife_collected= c(1, 1, 0, 0),
+                             remains_of_wildlife_sent_to_smithsonian= c(0, 1, 0, 1)
+                             )
+dbWriteTable(mydb, "action_done", df.action_done, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 flight_date_table 由于原始数据没有时间要求，故只有1个PK element date
+# print(df.raw[!duplicated(df.raw$FlightDate),]$FlightDate)
+df.flight_date_table <- data.frame(flight_date = df.raw[!duplicated(df.raw$FlightDate),]$FlightDate)
+dbWriteTable(mydb, "flight_date_table", df.flight_date_table, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 airline_info table
+#print(df.raw[!duplicated(df.raw$Aircraft..Airline.Operator),]$Aircraft..Airline.Operator)
+df.airline_info <- data.frame(airline_id = seq(1,nrow(df.raw[!duplicated(df.raw$Aircraft..Airline.Operator),])),
+                              aircraft_airline_operator= df.raw[!duplicated(df.raw$Aircraft..Airline.Operator),]$Aircraft..Airline.Operator
+                                )
+dbWriteTable(mydb, "airline_info", df.airline_info, overwrite = F,row.names = FALSE, append=TRUE)
+
+#写入 airport_info table Origin.State是不是应该在 flight info 里？
+# print(df.raw[!duplicated(df.raw$Airport..Name, df.raw$Origin.State),])
+# print(df.raw[!duplicated(df.raw$Origin.State),]$Origin.State)
+
+df.airport_info <- data.frame(
+      airport_info_id=seq(1,nrow(df.raw[!duplicated(df.raw[,c('Airport..Name', 'Origin.State')]), ])),
+      airport_name=df.raw[!duplicated(df.raw[,c('Airport..Name', 'Origin.State')]), ]$Airport..Name,
+      origin_state=df.raw[!duplicated(df.raw[,c('Airport..Name', 'Origin.State')]), ]$Origin.State
+                              )
+
+#print(df.airport_info)
+
+dbWriteTable(mydb, "airport_info", df.airport_info, overwrite=FALSE, append=TRUE, row.names = FALSE)
+
+
+```
+
+
+```{sql connection=mydb}
+DROP TABLE IF EXISTS record_table;
+```
+
+
+```{sql connection=mydb}
+CREATE TABLE IF NOT EXISTS record_table 
+    (record_id Int,
+	  remarks text,
+    airport_info_id Int NOT NULL,
+    airline_info_id Int NOT NULL,
+    aircraft_info_id Int NOT NULL,
+    phase_situation_id Int NOT NULL,
+    consequence_id Int NOT NULL,
+    wildlife_size_id Int NOT NULL,
+    conditions_precipitation_id Int NOT NULL,
+    conditions_sky_id Int NOT NULL,
+    action_id Int NOT NULL,
+    flight_date varchar(50),
+    wildlife_species_id Int NOT NULL,
+    feet_above_ground VARCHAR(50) DEFAULT -1,
+    wildlife_number_struck_actual Int DEFAULT -1,
+    number_of_people_injured Int DEFAULT -1,
+    cost_total text,
+    pilot_warned_of_birds_or_wildlife text,
+    PRIMARY KEY (record_id),
+    CONSTRAINT FOREIGN KEY (airport_info_id) REFERENCES airport_info(airport_info_id) ON DELETE CASCADE,
+    CONSTRAINT  FOREIGN KEY (airline_info_id) REFERENCES airline_info(airline_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (aircraft_info_id) REFERENCES aircraft_info(aircraft_info_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (phase_situation_id) REFERENCES phase_situation(phase_id) ON DELETE CASCADE,   
+    CONSTRAINT FOREIGN KEY (consequence_id) REFERENCES consequence(consequence_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (wildlife_size_id) REFERENCES wild_size_record(wildlife_size_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (conditions_precipitation_id) REFERENCES conditions_precipitation_type(conditions_precipitation_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (conditions_sky_id) REFERENCES conditions_of_sky(conditions_sky_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (action_id) REFERENCES action_done(action_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (flight_date) REFERENCES flight_date_table(flight_date) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (wildlife_species_id) REFERENCES wildlife_species(wildlife_species_id) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (feet_above_ground) REFERENCES altitude_situation(feet_above_ground) ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY (wildlife_number_struck_actual) REFERENCES wildlife_count(wildlife_number_struck_actual)  ON DELETE CASCADE
+);
+```
+
+
+
+```{r}
+
+n.raw <- nrow(df.raw)
+
+for (r in 1:n.raw){
+    
+    record_id <- df.raw$Record.ID[r]
+    
+    remarks_str <- df.raw$Remarks[r]
+    
+    remarks <- gsub("'", "", remarks_str)
+
+    airport_info_id <- df.airport_info$airport_info_id[which(df.airport_info$airport_name == df.raw$Airport..Name[r]
+               & df.airport_info$origin_state == df.raw$Origin.State[r])]
+    
+    airline_info_id <- df.airline_info$airline_id[which(df.airline_info$aircraft_airline_operator 
+                                                        == df.raw$Aircraft..Airline.Operator[r])]
+    
+    aircraft_info_id <- df.aircraft_info$aircraft_info_id[which(df.aircraft_info$aircraft_type == df.raw$Aircraft..Type[r] & df.aircraft_info$aircraft_make_model == df.raw$Aircraft..Make.Model[r]
+               & df.aircraft_info$is_aircraft_large == df.raw$Is.Aircraft.Large.[r]
+               & df.aircraft_info$aircraft_number_of_engines == df.raw$Aircraft..Number.of.engines.[r])]
+      
+    phase_situation_id <- df.phase_situation$phase_id[which(df.phase_situation$when_phase_of_flight
+               == df.raw$When..Phase.of.flight[r])]
+    
+    consequence_id <- df.consequence$consequence_id[which(df.consequence$effect_impact_to_flight
+               == df.raw$Effect..Impact.to.flight[r] & df.consequence$effect_indicated_damage
+               == df.raw$Effect..Indicated.Damage[r])]
+    
+    wildlife_size_id <- df.wild_size_record$wildlife_size_id[which(df.wild_size_record$wildlife_size
+               == df.raw$Wildlife..Size[r])]
+    
+    conditions_precipitation_id <- df.conditions_precipitation_type$conditions_precipitation_id[which(
+      df.conditions_precipitation_type$condition_precipitation == df.raw$Conditions..Precipitation[r]
+    )]
+    
+    conditions_sky_id <- df.conditions_of_sky$conditions_sky_id[which(df.conditions_of_sky$condition_sky
+              == df.raw$Conditions..Sky[r])]
+    
+    
+    action_raw_collected <- df.raw$Remains.of.wildlife.collected.[r]
+    if (action_raw_collected == TRUE) {
+      action_collected <- 1
+    } else {
+      action_collected <- 0
+    }
+    
+    action_raw_sent <- df.raw$Remains.of.wildlife.sent.to.Smithsonian[r]
+    if (action_raw_sent == TRUE) {
+      action_sent <- 1
+    } else {
+      action_sent <- 0
+    }
+    
+    action_id_int <- df.action_done$action_id[which(df.action_done$remains_of_wildlife_collected
+              == action_collected
+              & df.action_done$remains_of_wildlife_sent_to_smithsonian
+              == action_sent)]
+    
+    flight_date <- df.raw$FlightDate[r]
+    
+    wildlife_species_id <- df.wildlife_species$wildlife_species_id[which(df.wildlife_species$species
+               == df.raw$Wildlife..Species[r])]
+    
+    feet_above_ground <- df.raw$Feet.above.ground[r]
+    
+    wildlife_number_struck_actual <- df.raw$Wildlife..Number.Struck.Actual[r]
+    
+    number_of_people_injured <- df.raw$Number.of.people.injured[r]
+  
+    cost_total <- df.raw$Cost..Total..[r]
+    
+    pilot_warned_of_birds_or_wildlife <- df.raw$Pilot.warned.of.birds.or.wildlife.[r]
+    
+    
+    statement = paste("INSERT INTO record_table VALUES(", record_id, ",'", remarks, "',", airport_info_id,
+                      ",", airline_info_id, ",", aircraft_info_id, ",", phase_situation_id, ",",
+                      consequence_id, ",", wildlife_size_id, ",", conditions_precipitation_id, ",",
+                      conditions_sky_id, ",", action_id_int, ",", "'",flight_date, "'", ",",
+                      wildlife_species_id, ",'", feet_above_ground, "',", wildlife_number_struck_actual,
+                      ",", number_of_people_injured, ",'", cost_total, "','", pilot_warned_of_birds_or_wildlife,
+                       "');", sep ="")
+
+    rs <- dbSendStatement(mydb, 
+                        statement)
+    dbClearResult(rs)
+  
+}
+
+```
+
+
+
+
+#Q4
+```{sql connection=mydb}
+
+select airline_info_id, aircraft_airline_operator, count(*) as "indicents" from record_table
+  inner join phase_situation on phase_situation_id = phase_id
+  inner join airline_info on airline_info_id = airline_id
+  where phase_id = 1 or phase_id = 4
+  group by airline_info_id
+  order by count(*) desc
+```
+
+#Q5
+```{sql connection=mydb}
+select record_table.airport_info_id,airport_info.airport_name, count(*) from record_table 
+    inner join airport_info
+    ON (airport_info.airport_info_id = record_table.airport_info_id)
+    group by airport_info_id
+    order by count(*) DESC limit 1 
+```
+
+#Q6
+```{sql connection=mydb}
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2011'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2010'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2009'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2008'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2007'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2006'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2005'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2004'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2003'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2002'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2001'
+union
+SELECT COUNT(record_id) 
+FROM record_table
+WHERE YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2000'
+group by record_id
+```
+
+
+
+
+
+#Q7: A column chart that visualizes the number of bird strikes incidents per year from 2008 to 2011 during 
+# take-off/climbing and during descent/approach/landing, to compare one versus the other. 
+# Adorn the graph with appropriate axis labels, titles, legend, data labels, etc.
+
+```{r}
+statement801 = "SELECT COUNT(rct.record_id) 
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2008') 
+       AND (phs.when_phase_of_flight LIKE 'Take-off run' OR phs.when_phase_of_flight LIKE 'Climb')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data08_pre <- dbGetQuery(mydb, statement801)
+num08_pre <- data08_pre[[1]]
+
+
+statement802 = "SELECT COUNT(rct.record_id)
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2008') 
+       AND (phs.when_phase_of_flight LIKE 'Descent' OR phs.when_phase_of_flight LIKE 'Approach'
+       OR phs.when_phase_of_flight LIKE 'Landing Roll')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data08_post <- dbGetQuery(mydb, statement802)
+num08_post <- data08_post[[1]]
+
+
+statement901 = "SELECT COUNT(rct.record_id) 
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2009') 
+       AND (phs.when_phase_of_flight LIKE 'Take-off run' OR phs.when_phase_of_flight LIKE 'Climb')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data09_pre <- dbGetQuery(mydb, statement901)
+num09_pre <- data09_pre[[1]]
+
+
+statement902 = "SELECT COUNT(rct.record_id)
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2009') 
+       AND (phs.when_phase_of_flight LIKE 'Descent' OR phs.when_phase_of_flight LIKE 'Approach'
+       OR phs.when_phase_of_flight LIKE 'Landing Roll')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data09_post <- dbGetQuery(mydb, statement902)
+num09_post <- data09_post[[1]]
+
+
+statement1001 = "SELECT COUNT(rct.record_id) 
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2010') 
+       AND (phs.when_phase_of_flight LIKE 'Take-off run' OR phs.when_phase_of_flight LIKE 'Climb')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data10_pre <- dbGetQuery(mydb, statement1001)
+num10_pre <- data10_pre[[1]]
+
+
+statement1002 = "SELECT COUNT(rct.record_id)
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2010') 
+       AND (phs.when_phase_of_flight LIKE 'Descent' OR phs.when_phase_of_flight LIKE 'Approach'
+       OR phs.when_phase_of_flight LIKE 'Landing Roll')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data10_post <- dbGetQuery(mydb, statement1002)
+num10_post <- data10_post[[1]]
+
+
+statement1101 = "SELECT COUNT(rct.record_id) 
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2011') 
+       AND (phs.when_phase_of_flight LIKE 'Take-off run' OR phs.when_phase_of_flight LIKE 'Climb')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data11_pre <- dbGetQuery(mydb, statement1101)
+num11_pre <- data11_pre[[1]]
+
+statement1102 = "SELECT COUNT(rct.record_id)
+FROM record_table rct LEFT JOIN phase_situation phs ON (rct.phase_situation_id = phs.phase_id)
+WHERE (YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y')) LIKE '2011') 
+       AND (phs.when_phase_of_flight LIKE 'Descent' OR phs.when_phase_of_flight LIKE 'Approach'
+       OR phs.when_phase_of_flight LIKE 'Landing Roll')
+GROUP BY YEAR(STR_TO_DATE(flight_date,'%m/%d/%Y'));"
+data11_post <- dbGetQuery(mydb, statement1102)
+num11_post <- data11_post[[1]]
+
+colors = c("orange", "green")
+yearName <- c("2008", "2009", "2010", "2011")
+phaseGroup <- c("take-off/climbing", "descent/approach/landing")
+
+Values <- matrix(c(num08_pre, num09_pre, num10_pre, num11_pre, num08_post, num09_post, num10_post, num11_post), 
+                 nrow = 2, ncol = 4, byrow = TRUE)
+  
+barplot(Values, main = "Bird Strike Incidents Per Year From 2008 to 2011", 
+                       names.arg = yearName, 
+                          xlab = "Year", ylab = "Incident Count", 
+                          col = colors, beside = TRUE, ylim=c(0,3000))
+
+legend("topleft", phaseGroup, cex = 0.75, fill = colors)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+#Q8: stored procedure in MySQL 
+# removes a bird strike incident from the database 
+# goal: delete a record by record ID, input is the number 
+
+
+# 0.Set up for stored_procedure
+```{sql connection=mydb}
+DROP PROCEDURE IF EXISTS del_record;
+```
+
+# 1.Create a stored procedure: delete a record according to given record id
+```{sql connection=mydb}
+CREATE PROCEDURE del_record (IN record_provided Int)
+DELETE FROM record_table
+WHERE record_provided = record_table.record_id;
+```
+
+# 2.Demonstrate before calling the stored procedure for deletion
+```{sql connection=mydb}
+SELECT rct.record_id, rct.flight_date, acf.aircraft_make_model, afo.aircraft_airline_operator
+  FROM airline_info afo LEFT JOIN record_table rct ON (afo.airline_id = rct.airline_info_id)
+                        JOIN aircraft_info acf ON (acf.aircraft_info_id = rct.aircraft_info_id)
+  WHERE rct.record_id = 201610;
+```
+
+# 3.Call stored procedure
+```{sql connection=mydb}
+CALL del_record(201610);
+```
+
+# 4.Demonstrate after deletion
+```{sql connection=mydb}
+SELECT rct.record_id, rct.flight_date, acf.aircraft_make_model, afo.aircraft_airline_operator
+  FROM airline_info afo LEFT JOIN record_table rct ON (afo.airline_id = rct.airline_info_id)
+                        JOIN aircraft_info acf ON (acf.aircraft_info_id = rct.aircraft_info_id)
+  WHERE rct.record_id = 201610;
+```
+
+# 5.Demonstrate before calling the stored procedure for deletion, another case
+```{sql connection=mydb}
+SELECT rct.record_id, rct.flight_date, acf.aircraft_make_model, afo.aircraft_airline_operator
+  FROM airline_info afo LEFT JOIN record_table rct ON (afo.airline_id = rct.airline_info_id)
+                        JOIN aircraft_info acf ON (acf.aircraft_info_id = rct.aircraft_info_id)
+  WHERE rct.record_id = 202836;
+```
+
+# 6.Call the stored procedure on this record_id
+```{sql connection=mydb}
+CALL del_record(202836);
+```
+
+# 7.Demonstrate before calling the stored procedure for deletion, another case
+```{sql connection=mydb}
+SELECT rct.record_id, rct.flight_date, acf.aircraft_make_model, afo.aircraft_airline_operator
+  FROM airline_info afo LEFT JOIN record_table rct ON (afo.airline_id = rct.airline_info_id)
+                        JOIN aircraft_info acf ON (acf.aircraft_info_id = rct.aircraft_info_id)
+  WHERE rct.record_id = 202836;
+```
+
+# 7.Clean up for stored_procedure
+```{sql connection=mydb}
+DROP PROCEDURE IF EXISTS del_record;
+```
+
+
+

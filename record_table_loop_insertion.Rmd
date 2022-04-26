@@ -1,0 +1,96 @@
+
+
+```{r}
+
+n.raw <- nrow(df.raw)
+
+for (r in 1:n.raw){
+    
+    record_id <- df.raw$Record.ID[r]
+    
+    remarks <- df.raw$Remarks[r]
+    
+    airport_info_id <- df.airport_info$airport_info_id[which(df.airport_info$airport_name == df.raw$Airport..Name[r]
+               & df.airport_info$origin_state == df.raw$Origin.State[r])]
+  
+    airline_info_id <- df.airline_info$airline_id[which(df.airline_info$aircraft_airline_operator 
+                                                        == df.raw$Aircraft..Airline.Operator[r])]
+    
+    aircraft_info_id <- df.aircraft_info$aircraft_info_id[which(df.aircraft_info$aircraft_type == df.raw$Aircraft..Type[r] & df.aircraft_info$aircraft_make_model == df.raw$Aircraft..Make.Model[r]
+               & df.aircraft_info$is_aircraft_large == df.raw$Is.Aircraft.Large.[r]
+               & df.aircraft_info$aircraft_number_of_engines == df.raw$Aircraft..Number.of.engines.[r])]
+      
+    phase_situation_id <- df.phase_situation$phase_id[which(df.phase_situation$when_phase_of_flight
+               == df.raw$When..Phase.of.flight[r])]
+    
+    consequence_id<- df.consequence$consequence_id[which(df.consequence$effect_impact_to_flight
+               == df.raw$Effect..Impact.to.flight[r] & df.consequence$effect_indicated_damage
+               == df.raw$Effect..Indicated.Damage[r])]
+    
+    wildlife_size_id <- df.wild_size_record$wildlife_size_id[which(df.wild_size_record$wildlife_size
+               == df.raw$Wildlife..Size[r])]
+    
+    conditions_precipitation_id <- df.conditions_precipitation_type$conditions_precipitation_id[which(
+      df.conditions_precipitation_type$condition_precipitation == df.raw$Conditions..Precipitation[r]
+    )]
+    
+    conditions_sky_id <- df.conditions_of_sky$conditions_sky_id[which(df.conditions_of_sky$condition_sky
+              == df.raw$Conditions..Sky[r])]
+    
+    
+    action_raw_collected <- df.raw$Remains.of.wildlife.collected.[r]
+    if (action_raw_collected == TRUE) {
+      action_collected <- 1
+    } else {
+      action_collected <- 0
+    }
+    
+    action_raw_sent <- df.raw$Remains.of.wildlife.sent.to.Smithsonian[r]
+    if (action_raw_sent == TRUE) {
+      action_sent <- 1
+    } else {
+      action_sent <- 0
+    }
+    
+    action_id_int <- df.action_done$action_id[which(df.action_done$remains_of_wildlife_collected
+              == action_collected
+              & df.action_done$remains_of_wildlife_sent_to_smithsonian
+              == action_sent)]
+    
+    flight_date <- df.raw$FlightDate[r]
+    
+    wildlife_species_id <- df.wildlife_species$wildlife_species_id[which(df.wildlife_species$species
+               == df.raw$Wildlife..Species[r])]
+    
+    feet_above_ground <- df.raw$Feet.above.ground[r]
+    
+    wildlife_number_struck_actual <- df.raw$Wildlife..Number.Struck.Actual[r]
+    
+    number_of_people_injured <- df.raw$Number.of.people.injured[r]
+  
+    cost_total <- df.raw$Cost..Total..[r]
+    
+    pilot_warned_of_birds_or_wildlife <- df.raw$Pilot.warned.of.birds.or.wildlife.[r]
+    
+    
+    statement = paste("INSERT INTO record_table VALUES(", record_id, ",'", remarks, "',", airport_info_id,
+                      ",", airline_info_id, ",", aircraft_info_id, ",", phase_situation_id, ",",
+                      consequence_id, ",", wildlife_size_id, ",", conditions_precipitation_id, ",",
+                      conditions_sky_id, ",", action_id_int, ",", "'",flight_date, "'", ",",
+                      wildlife_species_id, ",'", feet_above_ground, "',", wildlife_number_struck_actual,
+                      ",", number_of_people_injured, ",'", cost_total, "','", pilot_warned_of_birds_or_wildlife,
+                       "');", sep ="")
+
+    rs <- dbSendStatement(mydb, 
+                        statement)
+    dbClearResult(rs)
+  
+}
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

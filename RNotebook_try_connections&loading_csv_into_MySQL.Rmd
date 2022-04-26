@@ -1,0 +1,102 @@
+---
+title: "Practicum 1 - setup try"
+output: html_notebook
+---
+Author: Haowen Xue, Ziwei Wang, Venka, Thomas
+Oct 21, 2021
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+`
+
+#After installing Package - "RMySQL"
+```{r}
+library(RMySQL)
+```
+
+#Login information:                                                                   TODO 
+#change according to local setup
+```{r}
+
+# template: dbcon <- dbConnect(MySQL(), user=<enter username>, password=<enter pw>, dbname= <a database that already exists>, host='localhost')
+# single quote for entered String values
+```
+
+#Enable loading local data - on both the client and server sides
+```{sql connection=dbcon}
+SET GLOBAL local_infile=1;
+```
+
+#Change according to local file path                                                  TODO 
+```{r}
+dataset <- read.csv("~/Downloads/BirdStrikesData.csv")
+
+# template: dataset <- read.csv("~/Downloads/BirdStrikesData.csv")
+```
+
+#Set up for table
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS trytable6; 
+```
+
+#Manually set the data frame's column names to fit MySQL naming conventions
+#needs double checking on the order of columns                                         TODO 
+```{r}
+colnames(dataset) <- c("record_id",	"aircraft_type",	"airport_name",	"altitude_bin",	"aircraft_make_model",	"wildlife_number_struck",	"wildlife_number_struck_actual",	"effect_impact_to_flight",	"flight_date",	"effect_indicated_damage",	"aircraft_number_of_engines",	"aircraft_airline_operator",	"origin_state",	"when_phase_of_flight",	"conditions_precipitation",	"remains_of_wildlife_collected",	"remains_of_wildlife_sent_to_smithsonian",	"remarks",	"wildlife_size",	"conditions_sky",	"wildlife_species",	"pilot_warned_of_birds_or_wildlife",	"cost_total",	"feet_above_ground",	"number_of_people_injured",	"is_aircraft_large")
+
+
+#all column names: please confirm the the above columns are in the same order with the following columns:
+"
+From original .csv file; 
+
+Record ID	Aircraft: Type	Airport: Name	Altitude bin	Aircraft: Make/Model	Wildlife: Number struck	Wildlife: Number Struck Actual	Effect: Impact to flight	FlightDate	Effect: Indicated Damage	Aircraft: Number of engines?	Aircraft: Airline/Operator	Origin State	When: Phase of flight	Conditions: Precipitation	Remains of wildlife collected?	Remains of wildlife sent to Smithsonian	Remarks	Wildlife: Size	Conditions: Sky	Wildlife: Species	Pilot warned of birds or wildlife?	Cost: Total $	Feet above ground	Number of people injured	Is Aircraft Large?
+  "
+```
+
+#Check column names
+```{r}
+colnames(dataset)
+```
+
+#Load data frame into MySQL Database
+```{r}
+dbWriteTable(dbcon, value = dataset, name = "trytable6", row.names = FALSE, append = TRUE, stringsAsFactors = FALSE)
+```
+
+#Inspect the table
+```{sql connection=dbcon}
+SELECT * FROM trytable6;
+```
+
+#get count of the records
+```{r}
+nrow(dataset)
+```
+
+
+```{sql connection=dbcon}
+SELECT COUNT(record_id) FROM trytable6;
+```
+
+
+
+
+
+
+
+
+
+
+
+#Disconnect Database
+```{sql connection=dbcon}
+dbDisconnect(dbcon)
+```
+
