@@ -2,7 +2,7 @@
 title: "Practicum 1 - setup try"
 output: html_notebook
 ---
-Author: Haowen Xue, Ziwei Wang, Venka, Thomas
+Author: Haowen Xue - Zack
 Oct 21, 2021
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
